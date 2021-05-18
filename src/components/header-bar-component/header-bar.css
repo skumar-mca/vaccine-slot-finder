@@ -1,0 +1,54 @@
+.react-datepicker-wrapper input {
+    width: 95px!important;
+    padding: 0px 0px 0px 0px;
+    height: 21px;
+    border: 0;
+    background-color: #e9ecef;
+}
+
+.form-control {
+    background-color: #e9ecef;
+}
+
+.btn-del-location {
+    margin-left: 15px;
+    font-weight: bold;
+}
+
+.btn-add-location {
+    margin-bottom: 6px;
+    padding: 2px 5px 2px 5px;
+    margin-top: 6px;
+    float: right;
+}
+
+.no-record {
+    text-align: center;
+}
+
+.slot-result-wrapper {
+    margin-bottom: 20px;
+}
+
+.form-row {
+    margin-bottom: 20px;
+}
+
+.form-check {
+    display: inline-block!important;
+    margin-left: 10px;
+}
+
+.btn-block {
+    width: 100%;
+}
+
+.btn-logout {
+    position: absolute;
+    right: 20px;
+    top: 20px;
+}
+
+.table-slot-result th:nth-child(5), .table-slot-result td:nth-child(5), .table-slot-result th:nth-child(6), .table-slot-result td:nth-child(6), .table-slot-result th:nth-child(7), .table-slot-result td:nth-child(7), .table-slot-result th:nth-child(8), .table-slot-result td:nth-child(8) {
+    text-align: center;
+}
