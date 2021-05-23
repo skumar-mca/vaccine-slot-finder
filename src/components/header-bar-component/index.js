@@ -1,19 +1,22 @@
 import axios from 'axios';
 import { useEffect, useState } from 'react';
-
 import DatePicker from "react-datepicker";
-
-import "react-datepicker/dist/react-datepicker.css";
 import { setItem, getItem } from '../../util/index';
-
+import "react-datepicker/dist/react-datepicker.css";
 import './header-bar.css';
 function HeaderBarComponent(props) {
     let timerRef = null;
-    // const interval = 1000 * 60 * 10;
-    const maxLocations = 5;
     const oneMinute = 1000 * 60;
 
     const intervalOptions = [
+        {
+            value: oneMinute / 4,
+            label: '15 Seconds'
+        },
+        {
+            value: oneMinute / 2,
+            label: '30 Seconds'
+        },
         {
             value: oneMinute,
             label: '1 Minute'
@@ -37,7 +40,12 @@ function HeaderBarComponent(props) {
         EMAIL_ID: 'EMAIL_ID',
         AUTO_REFRESH_FLAG: 'AUTO_REFRESH_FLAG',
         SEARCH_CONDITIONS: 'SEARCH_CONDITIONS',
-        STATES: 'STATES'
+        STATES: 'STATES',
+        AGE_LIMIT_18: 'AGE_LIMIT_18',
+        AGE_LIMIT_45: 'AGE_LIMIT_45',
+        AGE_LIMIT_60: 'AGE_LIMIT_60',
+        DOSE_1: 'DOSE_1',
+        DOSE_2: 'DOSE_2'
     }
 
     const initialSearch = () => {
@@ -67,23 +75,35 @@ function HeaderBarComponent(props) {
     const [statesList, setStatesList] = useState([]);
     const [searchConditions, setSearchConditions] = useState(initialSearch());
     const [selectedDate, setSelectedDate] = useState(new Date());
-    const [isAutoRefresh, setIsAutoRefresh] = useState(true);
-    const [emailId, setEmailId] = useState('');
-    const [refreshInterval, setRefreshInterval] = useState(oneMinute);
+    const [isAutoRefresh, setIsAutoRefresh] = useState(false);
+    const [refreshInterval, setRefreshInterval] = useState(null);
+    const [ageLimit18Plus, setAgeLimit18Plus] = useState(false);
+    const [ageLimit45Plus, setAgeLimit45Plus] = useState(false);
+
+    const [dose1, setDose1] = useState(true);
+    const [dose2, setDose2] = useState(true);
+
+    const [timeLefToRefreshtMsg, setTimeLefToRefreshtMsg] = useState('');
+
 
     const loadLastSearchedValues = () => {
-        const emailID = getItem(LOCAL_STORAGE.EMAIL_ID, '');
-        if (emailID) {
-            setEmailId(emailID);
-        }
-
         const autoRefeshFlag = getItem(LOCAL_STORAGE.AUTO_REFRESH_FLAG, false);
         setIsAutoRefresh(autoRefeshFlag);
 
         const refreshInterval = getItem(LOCAL_STORAGE.AUTO_REFRESH_INTERVAL, oneMinute);
-        if (refreshInterval) {
-            setRefreshInterval(refreshInterval);
-        }
+        setRefreshInterval(parseInt(refreshInterval));
+
+        const ageLimit18 = getItem(LOCAL_STORAGE.AGE_LIMIT_18, false);
+        setAgeLimit18Plus(ageLimit18);
+
+        const ageLimit45 = getItem(LOCAL_STORAGE.AGE_LIMIT_45, false);
+        setAgeLimit45Plus(ageLimit45);
+
+        const firstDose = getItem(LOCAL_STORAGE.DOSE_1, false);
+        setDose1(firstDose);
+
+        const secondDose = getItem(LOCAL_STORAGE.DOSE_2, false);
+        setDose2(secondDose);
     }
 
     const getStates = () => {
@@ -101,7 +121,6 @@ function HeaderBarComponent(props) {
             }
         })
     }
-
 
     const getDistricts = (stateId, cb) => {
         const key = `DISTRICTS_${stateId}`
@@ -128,14 +147,18 @@ function HeaderBarComponent(props) {
             const currentConditionIndex = searchConditions.findIndex((itm) => itm.id === currentSearch.id);
             if (currentConditionIndex > -1) {
                 searchConditions[currentConditionIndex].state = value;
-                const stateObj = statesList.find((itm) => itm.state_id == value);
+                const stateObj = statesList.find((itm) => itm.state_id === parseInt(value));
                 if (stateObj) {
                     searchConditions[currentConditionIndex].state_name = stateObj.state_name;
                 }
+
                 searchConditions[currentConditionIndex].districtList = resp;
+
+                setSearchConditions((prev) => {
+                    return [...searchConditions]
+                });
+                saveSearchConditions(searchConditions);
             }
-            setSearchConditions([...searchConditions]);
-            saveSearchConditions(searchConditions);
         })
     }
 
@@ -145,7 +168,7 @@ function HeaderBarComponent(props) {
         if (currentConditionIndex > -1) {
             searchConditions[currentConditionIndex].district = value;
 
-            const districtObj = searchConditions[currentConditionIndex].districtList.find((itm) => itm.district_id == value);
+            const districtObj = searchConditions[currentConditionIndex].districtList.find((itm) => itm.district_id === parseInt(value));
             if (districtObj) {
                 searchConditions[currentConditionIndex].district_name = districtObj.district_name;
             }
@@ -153,6 +176,7 @@ function HeaderBarComponent(props) {
         }
         setSearchConditions([...searchConditions]);
         saveSearchConditions(searchConditions);
+        handleOnSearch();
     }
 
     const saveSearchConditions = (searchList) => {
@@ -173,8 +197,6 @@ function HeaderBarComponent(props) {
         setItem(LOCAL_STORAGE.SEARCH_CONDITIONS, seachParams);
     }
 
-
-
     const dateToDMY = (date) => {
         var d = date.getDate();
         var m = date.getMonth() + 1;
@@ -186,93 +208,97 @@ function HeaderBarComponent(props) {
         const searchParams = getItem(LOCAL_STORAGE.SEARCH_CONDITIONS, []);
         if (searchParams.length > 0) {
             searchParams.map((searchObj) => {
+                const currentConditionIndex = searchConditions.findIndex((itm) => itm.id === searchObj.id);
+                if (currentConditionIndex > -1) {
+                    searchConditions[currentConditionIndex].isLoading = true;
+                    setSearchConditions([...searchConditions]);
+                }
+
                 const url = `https://cdn-api.co-vin.in/api/v2/appointment/sessions/public/calendarByDistrict?district_id=${searchObj.district}&date=${dateToDMY(new Date(selectedDate))}`; //18-05-2021
                 axios.get(url).then((resp) => {
                     if (resp && resp.data) {
                         analyzeData(searchObj, resp.data.centers)
                     }
                 })
-            })
 
+                return true;
+            })
         }
     }
 
     const analyzeData = (searchObj, data) => {
         const availableSlots = [];
+        let ageFilter = [];
+
+        const age18 = getItem(LOCAL_STORAGE.AGE_LIMIT_18);
+        const age45 = getItem(LOCAL_STORAGE.AGE_LIMIT_45);
+
+        const dose1Val = getItem(LOCAL_STORAGE.DOSE_1)
+        const dose2Val = getItem(LOCAL_STORAGE.DOSE_2)
+
+        if (age18) {
+            ageFilter.push(18);
+        }
+
+        if (age45) {
+            ageFilter.push(45);
+        }
+
+        let totalRecords = 0;
         if (data.length > 0) {
             data.map((center) => {
                 let availableSession = [];
-                (center.sessions || []).map((session) => {
-                    if (session.available_capacity > 0 ||
-                        session.available_capacity_dose1 > 0 ||
+                let avlSession = (center.sessions || []);
+                if (ageFilter.length > 0) {
+                    avlSession = avlSession.filter((itm) => {
+                        return ageFilter.indexOf(itm.min_age_limit) > -1
+                    })
+                }
+
+                if ((dose1Val && !dose2Val) || (dose2Val && !dose1Val)) {
+                    if (dose1Val) {
+                        avlSession = avlSession.filter((itm) => {
+                            return itm.available_capacity_dose1 > 0
+                        })
+                    }
+
+                    if (dose2Val) {
+                        avlSession = avlSession.filter((itm) => {
+                            return itm.available_capacity_dose2 > 0
+                        })
+                    }
+                }
+
+                avlSession.map((session) => {
+                    if (session.available_capacity_dose1 > 0 ||
                         session.available_capacity_dose2 > 0) {
                         availableSession.push(session);
-
                     }
+
+                    return true;
                 })
 
                 if (availableSession.length > 1) {
+                    totalRecords += availableSession.length;
                     availableSlots.push({
                         center: center,
                         sessions: availableSession
                     });
                 }
+
+                return true;
             })
         }
 
         const currentConditionIndex = searchConditions.findIndex((itm) => itm.id === searchObj.id);
         if (currentConditionIndex > -1) {
+            searchConditions[currentConditionIndex].isLoading = false;
             searchConditions[currentConditionIndex].availableSlots = availableSlots;
+            searchConditions[currentConditionIndex].totalRecords = totalRecords;
             setSearchConditions([...searchConditions]);
             saveSearchConditions(searchConditions);
         }
-
-        if (availableSlots.length > 0) {
-            sendEmail(availableSlots);
-        }
     }
-
-    const sendEmail = (availableSlots) => {
-        if (!emailId) {
-            return;
-        }
-
-        let message = ``;
-        availableSlots && availableSlots.map((avl) => {
-            avl.sessions.map((session) => {
-                message = `${message}-------------------------------------------------------------------------------------------
-            Fee Type: ${avl.center.fee_type}, 
-            Fees: ${avl.center.vaccine_fees ? `${avl.center.vaccine_fees[0].fee} (${avl.center.vaccine_fees[0].vaccine})` : '0'},
-            Vaccine: ${session.vaccine},
-            Age Limit: ${session.min_age_limit},
-            Avl Capacity: ${session.available_capacity},
-            Dose 1: ${session.available_capacity_dose1},
-            Dose 2: ${session.available_capacity_dose2},
-            Date: ${session.date},
-            Address: ${avl.center.name}, ${avl.center.address}
-        `;
-            })
-        })
-
-        var data = {
-            service_id: 'service_d7elxlo',
-            template_id: 'template_91dx2y5',
-            user_id: 'user_OpcKVh9JRegJpoIecK0rs',
-            template_params: {
-                'to_email': emailId,
-                'from_name': 'Sunil Kumar',
-                'message': message
-            }
-        };
-
-        axios.post('https://api.emailjs.com/api/v1.0/email/send', data
-        ).then(() => {
-            //alert('Your mail is sent!');
-        }).catch((error) => {
-            //alert('Oops... ' + JSON.stringify(error));
-        });
-    }
-
 
     const addNewCondition = () => {
         if (searchConditions.length === 5) {
@@ -304,17 +330,47 @@ function HeaderBarComponent(props) {
         saveSearchConditions(searchConditions);
     }
 
-
     const initializeInterval = () => {
         clearInterval();
 
+        let ctr = 0;
         timerRef = window.setInterval(() => {
-            if (!isAutoRefresh) {
-                return false;
+            const isAutoRefreshEnabled = getItem(LOCAL_STORAGE.AUTO_REFRESH_FLAG, false);
+            if (isAutoRefreshEnabled) {
+
+                const refIntervalInSeconds = parseInt(refreshInterval) / 1000;
+                ctr++;
+                if (ctr > refIntervalInSeconds) {
+                    ctr = 1;
+                }
+
+                let timeLeftBeforeRefresh = refIntervalInSeconds - ctr;
+
+                if (timeLeftBeforeRefresh) {
+                    const minutes = Math.floor(timeLeftBeforeRefresh / 60);
+                    const seconds = Math.ceil(timeLeftBeforeRefresh % 60);
+
+                    let timeLeftMessage = [];
+
+                    timeLeftMessage.push(minutes < 10 ? `0${minutes}m: ` : `${minutes}m:`);
+
+
+                    timeLeftMessage.push(seconds < 10 ? `0${seconds}s` : `${seconds}s`);
+                    setTimeLefToRefreshtMsg(timeLeftMessage.join(''));
+                }
+
+                if (ctr === refIntervalInSeconds) {
+                    handleOnSearch();
+                }
+
+            } else {
+                setTimeLefToRefreshtMsg('');
+                ctr = 0;
+                return;
+
             }
 
-            handleOnSearch();
-        }, refreshInterval)
+        }, 1000)
     }
 
     const clearInterval = () => {
@@ -323,27 +379,33 @@ function HeaderBarComponent(props) {
         }
     }
 
-
     const onHandleAutoRefresh = (evt) => {
         const { checked } = evt.target;
         setItem(LOCAL_STORAGE.AUTO_REFRESH_FLAG, checked)
-        setIsAutoRefresh(checked)
-        if (checked) {
-            initializeInterval();
-        }
-    }
-
-    const onHandleEmailChange = (evt) => {
-        const { value } = evt.target;
-        setItem(LOCAL_STORAGE.EMAIL_ID, value)
-        setEmailId(value)
+        setIsAutoRefresh(() => { return checked });
     }
 
     const onHandleIntervalChange = (evt) => {
         const { value } = evt.target;
         setItem(LOCAL_STORAGE.AUTO_REFRESH_INTERVAL, value)
-        setRefreshInterval(value)
-        initializeInterval();
+        setRefreshInterval(() => { return value; })
+        window.location.reload();
+    }
+
+    const renderLoader = () => {
+        return <>
+            <button className="btn btn-secodary" type="button" disabled>
+                <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true">
+                </span>
+                <span className="ml-10">Loading...</span>
+            </button>
+        </>
+    }
+
+    Date.prototype.addDays = function (days) {
+        var date = new Date(this.valueOf());
+        date.setDate(date.getDate() + days);
+        return date;
     }
 
     useEffect(() => {
@@ -357,24 +419,26 @@ function HeaderBarComponent(props) {
     }, [])
 
     useEffect(() => {
+    }, [searchConditions, timeLefToRefreshtMsg, refreshInterval, ageLimit18Plus, ageLimit45Plus])
 
-    }, [searchConditions])
+    useEffect(() => {
+        initializeInterval();
+    }, [refreshInterval])
 
     return (
         <div className="header-section">
-            <div className="row form-row">
+            <div className="row form-row" key={`result-list`}>
                 {(searchConditions || []).map((srch, index) => {
-                    return <div className="col-md-4 col-sm-6" key={srch.id}>
-
-                        <h5>Location {index + 1}
+                    return <div className="col-md-4 col-sm-6" key={`${srch.id}-${srch.district}-${index}-main`}>
+                        <h5 key={`${srch.id}-${srch.district}-${index}-h5`}>Location {index + 1}
                             {searchConditions.length > 1 && <button className="btn text-danger btn-sm btn-del-location" title="Delete location" onClick={() => { deleteCondition(srch) }}>X</button>}
                             {index === searchConditions.length - 1 && <button className="btn btn-info btn-sm btn-add-location" onClick={addNewCondition}>+ Add Location</button>}
 
                         </h5>
 
-                        <div class="input-group input-group-sm mb-3">
-                            <span class="input-group-text" id={`inputGroup-sizing-sm-s-${srch.id}`}>State</span>
-                            <select class="form-control" aria-label="Sizing example input" aria-describedby={`inputGroup-sizing-sm-s-${srch.id}`}
+                        <div className="input-group input-group-sm mb-3" key={`${srch.id}-${srch.district}-${index}-div1`}>
+                            <span className="input-group-text" id={`inputGroup-sizing-sm-s-${srch.id}`}>State</span>
+                            <select className="form-control" aria-label="Sizing example input" aria-describedby={`inputGroup-sizing-sm-s-${srch.id}`}
                                 value={srch.state}
                                 onChange={(evt) => {
                                     searchDistricts(evt, srch)
@@ -382,16 +446,14 @@ function HeaderBarComponent(props) {
                             >
                                 <option>Select State</option>
                                 {statesList.map((state) => {
-                                    return <option value={state.state_id}>{state.state_name}</option>
+                                    return <option value={state.state_id} key={`state-${state.state_id}`}>{state.state_name}</option>
                                 })}
                             </select>
-
                         </div>
 
-
-                        <div class="input-group input-group-sm mb-3">
-                            <span class="input-group-text" id={`inputGroup-sizing-sm-d-${srch.id}`}>District</span>
-                            <select class="form-control" aria-label="Sizing example input" aria-describedby={`inputGroup-sizing-sm-d-${srch.id}`}
+                        <div className="input-group input-group-sm mb-3" key={`${srch.id}-${srch.district}-${index}-ig`}>
+                            <span className="input-group-text" id={`inputGroup-sizing-sm-d-${srch.id}`}>District</span>
+                            <select className="form-control" aria-describedby={`inputGroup-sizing-sm-d-${srch.id}`}
                                 aria-label={`.district-select-sm example`}
                                 value={srch.district}
                                 onChange={(evt) => {
@@ -400,7 +462,7 @@ function HeaderBarComponent(props) {
                             >
                                 <option>Select District</option>
                                 {srch.districtList && srch.districtList.map((district) => {
-                                    return <option value={district.district_id}>{district.district_name}</option>
+                                    return <option value={district.district_id} key={`district-${district.district_id}`}>{district.district_name}</option>
                                 })}
                             </select>
                         </div>
@@ -409,44 +471,86 @@ function HeaderBarComponent(props) {
                 })}
 
                 <div className='col-md-4 col-sm-6'>
-
-                    <div class="input-group input-group-sm mb-3">
-                        <span class="input-group-text" id={`inputGroup-sizing-sm-dt`}>Date</span>
-                        <div class="form-control" aria-label="Sizing example input" aria-describedby={`inputGroup-sizing-sm-dt`}
+                    <div className="input-group input-group-sm mb-3">
+                        <span className="input-group-text" id={`inputGroup-sizing-sm-dt`}>Date</span>
+                        <div className="form-control" aria-describedby={`inputGroup-sizing-sm-dt`}
                             aria-label={`.district-select-sm example`}>
-                            <DatePicker selected={selectedDate} onChange={date => setSelectedDate(date)} dateFormat="dd-MM-yyyy" />
-
+                            <DatePicker selected={selectedDate}
+                                onChange={date => {
+                                    setSelectedDate(date)
+                                    handleOnSearch();
+                                }}
+                                dateFormat="dd-MM-yyyy"
+                            />
+                            <span className="float-right"> to <small>{dateToDMY(new Date(selectedDate).addDays(5))}
+                            </small></span>
                         </div>
                     </div>
 
-                    <div class="input-group input-group-sm mb-3">
-                        <span class="input-group-text" id={`inputGroup-sizing-sm-s-email`}>Notify on email</span>
-                        <input class="form-control" aria-label="Sizing example input" aria-describedby={`inputGroup-sizing-sm-email`} placeholder="example@gmail.com"
-                            value={emailId}
-                            onChange={onHandleEmailChange}
-                        />
-
+                    <div className="input-group input-group-sm mb-3">
+                        <span className="input-group-text mr-20" id={`inputGroup-sizing-sm-s-email`}>Age Limit</span>
+                        <div className="form-check age-limit-chkbox form-check-inline ml-10">
+                            <input className="form-check-input" type="checkbox" id="inlineCheckbox1" checked={ageLimit18Plus} value={ageLimit18Plus} onChange={(evt) => {
+                                setAgeLimit18Plus(evt.target.checked)
+                                setItem(LOCAL_STORAGE.AGE_LIMIT_18, evt.target.checked);
+                                handleOnSearch();
+                            }} />
+                            <label className="form-check-label" htmlFor="inlineCheckbox1">18+</label>
+                        </div>
+                        <div className="form-check form-check-inline age-limit-chkbox">
+                            <input className="form-check-input" type="checkbox" id="inlineCheckbox2" checked={ageLimit45Plus} value={ageLimit45Plus}
+                                onChange={(evt) => {
+                                    setAgeLimit45Plus(evt.target.checked)
+                                    setItem(LOCAL_STORAGE.AGE_LIMIT_45, evt.target.checked);
+                                    handleOnSearch();
+                                }}
+                            />
+                            <label className="form-check-label" htmlFor="inlineCheckbox2">45+</label>
+                        </div>
                     </div>
+
+                    <div className="input-group input-group-sm mb-3">
+                        <span className="input-group-text mr-20" id={`inputGroup-sizing-sm-s-email`}>Dose</span>
+                        <div className="form-check age-limit-chkbox form-check-inline ml-10">
+                            <input className="form-check-input" type="checkbox" id="dose1" checked={dose1} value={dose1} onChange={(evt) => {
+                                setDose1(evt.target.checked)
+                                setItem(LOCAL_STORAGE.DOSE_1, evt.target.checked);
+                                handleOnSearch();
+                            }} />
+                            <label className="form-check-label" htmlFor="dose1">First</label>
+                        </div>
+                        <div className="form-check form-check-inline age-limit-chkbox">
+                            <input className="form-check-input" type="checkbox" id="dose2" checked={dose2} value={dose2}
+                                onChange={(evt) => {
+                                    setDose2(evt.target.checked)
+                                    setItem(LOCAL_STORAGE.DOSE_2, evt.target.checked);
+                                    handleOnSearch();
+                                }}
+                            />
+                            <label className="form-check-label" htmlFor="dose2">Second</label>
+                        </div>
+                    </div>
+
                     <div className="row">
                         <div className="col-md-6 col-sm-12">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" value="" id="flexCheckChecked" checked={isAutoRefresh} onChange={onHandleAutoRefresh} />
-                                <label class="form-check-label" for="flexCheckChecked">Auto Refresh</label>
+                            <div className="form-check">
+                                <input className="form-check-input" type="checkbox" value="" id="flexCheckChecked" checked={isAutoRefresh} onChange={onHandleAutoRefresh} />
+                                <label className="form-check-label" htmlFor="flexCheckChecked">Auto Refresh</label>
                             </div>
                         </div>
 
                         <div className="col-md-6 col-sm-12">
-                            <div class="input-group input-group-sm mb-3">
-                                <span class="input-group-text" id={`inputGroup-sizing-sm-s-interval`}>Interval</span>
-                                <select class="form-control" aria-label="Sizing example input" aria-describedby={`inputGroup-sizing-sm-interval`} value={refreshInterval}
+                            <div className="input-group input-group-sm mb-3">
+                                <span className="input-group-text" id={`inputGroup-sizing-sm-s-interval`}>Interval</span>
+                                <select className="form-control" aria-label="Sizing example input" aria-describedby={`inputGroup-sizing-sm-interval`} value={refreshInterval || ''}
                                     onChange={onHandleIntervalChange}
+                                    disabled={!isAutoRefresh}
                                 >
                                     <option>Select Interval</option>
                                     {intervalOptions.map((opt) => {
-                                        return <option value={opt.value}>{opt.label}</option>
+                                        return <option value={opt.value} key={`int-${opt.value}`}>{opt.label}</option>
                                     })}
                                 </select>
-
                             </div>
                         </div>
                     </div>
@@ -454,89 +558,112 @@ function HeaderBarComponent(props) {
 
                 <div className="col-md-2 col-sm-6">
                     <button className="btn btn-sm btn-primary btn-block" onClick={handleOnSearch}>Search</button>
+                    {isAutoRefresh && <span><small>Auto-Refreshing in {timeLefToRefreshtMsg}</small></span>}
                 </div>
             </div>
 
             <div className="row d-md-block d-lg-block d-sm-none d-xs-none d-none">
-                {(searchConditions || []).map((srch) => {
+                {(searchConditions || []).map((srch, index) => {
                     let ctr = 0;
-                    return <div className="col-md-12 slot-result-wrapper">
-                        <h4>{srch.state_name} ({srch.district_name})</h4>
-                        <table className="table table-dark table-striped table-sm table-hover table-slot-result">
-                            <thead>
-                                <tr>
+                    return <div className="col-md-12 slot-result-wrapper" key={`${srch.center_id}-${index}`}>
+                        <h4>{srch.state_name} ({srch.district_name})
+                        {srch.totalRecords > 0 && <small className='float-right record-count' >{srch.totalRecords} records</small>}
+                        </h4>
 
-                                    <th>#</th>
-                                    <th>Fee Type</th>
-                                    <th>Fees</th>
-                                    <th>Vaccine</th>
-                                    <th>Age Limit</th>
-                                    <th>Avl Capacity</th>
-                                    <th>Avl Dose 1</th>
-                                    <th>Avl Dose 2</th>
-                                    <th>Date</th>
-                                    <th>Address</th>
+                        {srch.isLoading &&
+                            <div className='loader-img'>
+                                {renderLoader()}
+                            </div>
+                        }
+                        {!srch.isLoading &&
+                            <table className="table table-dark table-striped table-sm table-hover table-slot-result">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Fee Type</th>
+                                        <th>Fees</th>
+                                        <th>Vaccine</th>
+                                        <th>Age Limit</th>
+                                        <th>Dose 1</th>
+                                        <th>Dose 2</th>
+                                        <th>Date</th>
+                                        <th>Address</th>
 
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {(srch.availableSlots || []).length === 0 && <tr><td colSpan="10" className='no-record'>No slots found!</td></tr>}
-                                {(srch.availableSlots || []).map((slot) => {
-                                    return (slot.sessions || []).map((session, indx) => {
-                                        return <tr>
-                                            <td>{++ctr}</td>
-                                            <td>{slot.center.fee_type}</td>
-                                            <td>{slot.center.vaccine_fees ? `${slot.center.vaccine_fees[0].fee} (${slot.center.vaccine_fees[0].vaccine})` : '0'}</td>
-                                            <td>{session.vaccine}</td>
-                                            <td>{session.min_age_limit}</td>
-                                            <td>{session.available_capacity}</td>
-                                            <td>{session.available_capacity_dose1}</td>
-                                            <td>{session.available_capacity_dose2}</td>
-                                            <td>{session.date}</td>
-                                            <td>{slot.center.name}, {slot.center.address}</td>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {(srch.availableSlots || []).length === 0 && <tr><td colSpan="10" className='no-record'>No slots found!</td></tr>}
+                                    {(srch.availableSlots || []).map((slot) => {
+                                        return (slot.sessions || []).map((session, indx) => {
+                                            return <tr key={session.session_id}>
+                                                <td>{++ctr}</td>
+                                                <td>{slot.center.fee_type}</td>
+                                                <td>{slot.center.vaccine_fees ? `${slot.center.vaccine_fees[0].fee} (${slot.center.vaccine_fees[0].vaccine})` : '0'}</td>
+                                                <td>{session.vaccine}</td>
+                                                <td>{session.min_age_limit}</td>
+                                                <td>{session.available_capacity_dose1}</td>
+                                                <td>{session.available_capacity_dose2}</td>
+                                                <td>{session.date}</td>
+                                                <td>{slot.center.name}, {slot.center.address}</td>
+                                            </tr>
+                                        })
 
-                                        </tr>
                                     })
-
-                                })
-                                }
-                            </tbody>
-                        </table>
+                                    }
+                                </tbody>
+                            </table>
+                        }
                     </div>
                 })}
             </div>
 
             <div className="row d-lg-none d-md-none d-sm-block d-xs-block">
                 {(searchConditions || []).map((srch) => {
-                    return <div className="col-md-12 slot-result-wrapper">
-                        <h4>{srch.state_name} ({srch.district_name})</h4>
-                        {(srch.availableSlots || []).length === 0 && <div className='no-record'>No slots found!</div>}
-                        <div class="list-group">
-                            {(srch.availableSlots || []).map((slot) => {
-                                return (slot.sessions || []).map((session, indx) => {
-                                    return <a href="javascript:void(0)" class="list-group-item list-group-item-action" aria-current="true">
-                                        <div class="d-flex w-100 justify-content-between">
-                                            <h5 class="mb-1">
-                                                Age Limit: {session.min_age_limit},
-                                                Rs. {slot.center.vaccine_fees ? `${slot.center.vaccine_fees[0].fee} (${slot.center.vaccine_fees[0].vaccine})` : '0'}
-                                            </h5>
-                                            <small>
-                                                <span class="badge bg-primary">{slot.center.fee_type}</span>
-                                            </small>
-                                        </div>
-                                        <p class="mb-1">
-                                            Available Capacity: {session.available_capacity},{` `}
-                                            <b>Dose 1</b>: {session.available_capacity_dose1},{` `}
-                                            <b>Dose 2</b>: {session.available_capacity_dose2},
-                                                 </p>
-                                        <small>Vaccine: {session.vaccine}, Date: {session.date}</small>
+                    return <div className="col-md-12 slot-result-wrapper" key={`${srch.center_id}-mob`}>
+                        <h4>{srch.state_name} ({srch.district_name})
+                        {srch.totalRecords > 0 && <small className='float-right record-count' >{srch.totalRecords} records</small>}
+                        </h4>
 
-                                        <p><small>{slot.center.name}, {slot.center.address}</small></p>
-                                    </a>
+                        {srch.isLoading &&
+                            <div className='loader-img'>
+                                {renderLoader()}
+                            </div>
+                        }
+
+                        {!srch.isLoading && <>
+                            {(srch.availableSlots || []).length === 0 && <div className='no-record'>No slots found!</div>}
+                            <div className="list-group">
+                                {(srch.availableSlots || []).map((slot) => {
+                                    return (slot.sessions || []).map((session, indx) => {
+                                        return <a href="#" onClick={(evt) => { evt.preventDefault(); return false; }} className="list-group-item list-group-item-action" aria-current="true" key={`a-${session.session_id}`}>
+                                            <div className="d-flex w-100 justify-content-between">
+                                                <h5 className="mb-1">
+                                                    Age Limit: {session.min_age_limit}
+                                                    {slot.center.fee_type != 'Free'
+                                                        && <>
+                                                            {slot.center.vaccine_fees ? `, Rs. ${slot.center.vaccine_fees[0].fee} (${slot.center.vaccine_fees[0].vaccine})` : ''}</>}
+                                                </h5>
+                                                <small>
+                                                    <span className={`badge ${slot.center.fee_type === 'Free' ? 'bg-primary' : 'bg-info'}`}>{slot.center.fee_type}</span>
+                                                </small>
+                                            </div>
+
+                                            <p className="mb-1">
+                                                First Dose: <b>{session.available_capacity_dose1}</b>,{` `}
+                                                Second Dose: <b>{session.available_capacity_dose2}</b>,
+                                            </p>
+
+                                            <p className='mb-2'><small>{slot.center.name}, {slot.center.address}</small></p>
+                                            <p className='mb-0'>
+                                                <small><span className="badge bg-secondary">{session.vaccine}</span></small>
+                                                <small><span className="badge bg-secondary ml-10">{session.date}</span></small>
+                                            </p>
+                                        </a>
+                                    })
                                 })
-                            })
-                            }
-                        </div>
+                                }
+                            </div>
+                        </>}
                     </div>
                 })}
             </div>

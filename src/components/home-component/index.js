@@ -32,12 +32,12 @@ function HomeComponent() {
                 {!isLoggedIn
                     ? <LoginComponent onHandleSubmit={onHandleSubmit} />
                     : <>
-                        <figure class="text-center fig-app">
-                            <blockquote class="blockquote">
+                        <figure className="text-center fig-app">
+                            <blockquote className="blockquote">
                                 <p>Vaccine Slot Finder.</p>
                                 <button className="btn btn-sm btn-danger btn-logout" onClick={onHandleLogout}>Log Out</button>
                             </blockquote>
-                            <figcaption class="blockquote-footer">
+                            <figcaption className="blockquote-footer">
                                 <cite title="Source Title">Find slots at multiple locations together</cite>
                             </figcaption>
                         </figure>

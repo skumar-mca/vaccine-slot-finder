@@ -45,10 +45,45 @@
 
 .btn-logout {
     position: absolute;
-    right: 20px;
-    top: 20px;
+    right: 10px;
+    top: 10px;
 }
 
-.table-slot-result th:nth-child(5), .table-slot-result td:nth-child(5), .table-slot-result th:nth-child(6), .table-slot-result td:nth-child(6), .table-slot-result th:nth-child(7), .table-slot-result td:nth-child(7), .table-slot-result th:nth-child(8), .table-slot-result td:nth-child(8) {
+.age-limit-chkbox {
+    margin-top: 3px;
+}
+
+.loader-img {
+    text-align: center;
+}
+
+.loader-img img {
+    height: 80px;
+}
+
+.record-count {
+    font-size: 13px;
+    margin-top: 10px;
+}
+
+.table-slot-result th {
+    text-align: center;
+    white-space: nowrap;
+}
+
+.table-slot-result th, .table-slot-result td {
+    text-align: center;
+}
+
+.table-slot-result th:nth-child(8), .table-slot-result td:nth-child(8) {
+    width: 120px;
+}
+
+.table-slot-result td:nth-child(9) {
+    text-align: left!important;
+}
+
+.table-slot-result th:nth-child(1), .table-slot-result td:nth-child(1) {
+    width: 50px;
     text-align: center;
 }

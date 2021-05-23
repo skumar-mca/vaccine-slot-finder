@@ -39,19 +39,19 @@ function LoginComponent(props) {
 
     return (
         <div className="login-wrapper">
-            <div class="mb-3">
-                <label for="secretCode" class="form-label">Code</label>
-                <input type="password" class="form-control" id="secretCode" placeholder="Enter code" onChange={handleChange} />
+            <div className="mb-3">
+                <label htmlFor="secretCode" className="form-label">Code</label>
+                <input type="password" className="form-control" id="secretCode" placeholder="Enter code" onChange={handleChange} />
             </div>
-            <div class="mb-3">
-                <label for="secretKey" class="form-label">Secret Key</label>
-                <input type="password" class="form-control" id="secretKey" placeholder="Enter secret key" onChange={handleChange} />
+            <div className="mb-3">
+                <label htmlFor="secretKey" className="form-label">Secret Key</label>
+                <input type="password" className="form-control" id="secretKey" placeholder="Enter secret key" onChange={handleChange} />
             </div>
 
 
             {isError && <div className='text-danger'>Invalid code and key. Please try with valid credentials. </div>}
             <br />
-            <button type="button" class="btn btn-primary btn-block" disabled={!formValues.secretCode || !formValues.secretKey} onClick={handleSubmit}>Submit</button>
+            <button type="button" className="btn btn-primary btn-block" disabled={!formValues.secretCode || !formValues.secretKey} onClick={handleSubmit}>Submit</button>
         </div>
     );
 }
